@@ -13,7 +13,7 @@ app.all('/', async (req, res) => {
   const { prompt, seed = 40, model = 'unity', width = 1024, height = 1024, safe = true, enhance = true } = params;
 
   if (!prompt) {
-    return res.status(400).json({ code: 400, owner: 't.me/haji_nuII', message: 'Prompt is required.' });
+    return res.status(400).json({ code: 400, owner: 't.me/abj0o', message: 'Prompt is required.' });
   }
 
   try {
@@ -39,7 +39,7 @@ app.all('/', async (req, res) => {
     const buffer = Buffer.from(response.data);
 
     if (buffer.length < 55) {
-      return res.status(504).json({ code: 504, owner: 't.me/haji_nuII', prompt: translatedPrompt, settings: params, image: 'Error: No valid image received.' });
+      return res.status(504).json({ code: 504, owner: 't.me/abj0o', prompt: translatedPrompt, settings: params, image: 'Error: No valid image received.' });
     }
 
     res.set('Content-Type', 'image/jpeg');
