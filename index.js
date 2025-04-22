@@ -10,7 +10,7 @@ app.get('/', async (req, res) => {
   if (!prompt) {
     return res.status(400).json({
       code: 400,
-      owner: 't.me/haji_nuII',
+      owner: 't.me/abj0o',
       message: 'Prompt is required.'
     });
   }
@@ -40,7 +40,7 @@ app.get('/', async (req, res) => {
     if (buffer.length < 55) {
       return res.status(504).json({
         code: 504,
-        owner: 't.me/haji_nuII',
+        owner: 't.me/abj0o',
         prompt: translatedPrompt,
         settings: req.query,
         image: 'Error: No valid image received.'
