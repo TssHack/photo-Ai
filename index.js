@@ -10,7 +10,7 @@ const generateUserId = () => {
   return Math.floor(10000000 + Math.random() * 90000000).toString();
 };
 
-// دریافت پرامپت به زبان انگلیسی از GPT (با لاگ برای دیباگ)
+// گرفتن پرامپت انگلیسی از GPT
 const enhancePrompt = async (inputPrompt, userId) => {
   const url = "https://api.binjie.fun/api/generateStream";
   const headers = {
@@ -34,11 +34,11 @@ const enhancePrompt = async (inputPrompt, userId) => {
 
   const response = await axios.post(url, data, { headers });
 
-  // لاگ گرفتن برای بررسی ساختار واقعی
-  console.log("GPT raw response:", response.data);
-
-  // بازگرداندن کل پاسخ برای نمایش در خروجی
-  return response.data;
+  if (response.data && typeof response.data.prompt === 'string') {
+    return response.data.prompt.trim();
+  } else {
+    throw new Error('GPT response did not contain a valid prompt string.');
+  }
 };
 
 app.all('/', async (req, res) => {
@@ -63,24 +63,10 @@ app.all('/', async (req, res) => {
     });
   }
 
-  const userId = generateUserId(); // تولید userId جدید
+  const userId = generateUserId();
 
   try {
-    const generated = await enhancePrompt(prompt, userId);
-
-    // بررسی نوع خروجی و استخراج پرامپت نهایی
-    let generatedPrompt = '';
-    if (typeof generated === 'string') {
-      generatedPrompt = generated.trim().replace(/^"|"$/g, '');
-    } else if (generated && typeof generated.text === 'string') {
-      generatedPrompt = generated.text.trim().replace(/^"|"$/g, '');
-    } else {
-      return res.status(500).json({
-        error: 'GPT response is not a valid string or missing text field.',
-        rawResponse: generated,
-        userId
-      });
-    }
+    const generatedPrompt = await enhancePrompt(prompt, userId);
 
     const query = new URLSearchParams({
       seed,
