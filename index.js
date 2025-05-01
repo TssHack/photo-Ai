@@ -5,12 +5,12 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// تابع تولید userId تصادفی 8 رقمی
+// تولید userId تصادفی 8 رقمی
 const generateUserId = () => {
   return Math.floor(10000000 + Math.random() * 90000000).toString();
 };
 
-// تابع تبدیل متن فارسی به پرامپت انگلیسی با GPT
+// دریافت پرامپت به زبان انگلیسی از GPT (با لاگ برای دیباگ)
 const enhancePrompt = async (inputPrompt, userId) => {
   const url = "https://api.binjie.fun/api/generateStream";
   const headers = {
@@ -34,18 +34,12 @@ const enhancePrompt = async (inputPrompt, userId) => {
 
   const response = await axios.post(url, data, { headers });
 
-  let result = response.data;
+  // لاگ گرفتن برای بررسی ساختار واقعی
+  console.log("GPT raw response:", response.data);
 
-  if (typeof result === 'object' && result.text) {
-    result = result.text;
-  }
-
-  if (typeof result !== 'string') {
-    throw new Error('Invalid GPT response format: Expected a string.');
-  }
-
-  return result.trim().replace(/^"|"$/g, '');
-  };
+  // بازگرداندن کل پاسخ برای نمایش در خروجی
+  return response.data;
+};
 
 app.all('/', async (req, res) => {
   const method = req.method;
@@ -69,10 +63,25 @@ app.all('/', async (req, res) => {
     });
   }
 
-  const userId = generateUserId(); // تولید userId جدید برای هر درخواست
+  const userId = generateUserId(); // تولید userId جدید
 
   try {
-    const generatedPrompt = await enhancePrompt(prompt, userId);
+    const generated = await enhancePrompt(prompt, userId);
+
+    // بررسی نوع خروجی و استخراج پرامپت نهایی
+    let generatedPrompt = '';
+    if (typeof generated === 'string') {
+      generatedPrompt = generated.trim().replace(/^"|"$/g, '');
+    } else if (generated && typeof generated.text === 'string') {
+      generatedPrompt = generated.text.trim().replace(/^"|"$/g, '');
+    } else {
+      return res.status(500).json({
+        error: 'GPT response is not a valid string or missing text field.',
+        rawResponse: generated,
+        userId
+      });
+    }
+
     const query = new URLSearchParams({
       seed,
       model,
