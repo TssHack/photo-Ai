@@ -1,4 +1,3 @@
-
 const express = require('express');
 const axios = require('axios');
 const app = express();
@@ -6,46 +5,97 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
+// تابع تولید userId تصادفی 8 رقمی
+const generateUserId = () => {
+  return Math.floor(10000000 + Math.random() * 90000000).toString();
+};
+
+// تابع تبدیل متن فارسی به پرامپت انگلیسی با GPT
+const enhancePrompt = async (inputPrompt, userId) => {
+  const url = "https://api.binjie.fun/api/generateStream";
+  const headers = {
+    "authority": "api.binjie.fun",
+    "accept": "application/json, text/plain, */*",
+    "accept-language": "en-US,en;q=0.9",
+    "origin": "https://chat18.aichatos.xyz",
+    "referer": "https://chat18.aichatos.xyz/",
+    "user-agent": "Mozilla/5.0",
+    "Content-Type": "application/json"
+  };
+
+  const data = {
+    prompt: `فقط یک پرامپت تصویری حرفه‌ای و توصیفی به انگلیسی بده بر اساس متن زیر، بدون هیچ متن اضافه یا توضیحی:\n"${inputPrompt}"`,
+    userId: userId,
+    network: true,
+    system: "",
+    withoutContext: false,
+    stream: false
+  };
+
+  const response = await axios.post(url, data, { headers });
+
+  const result = response.data.text || response.data;
+  return result.trim().replace(/^"|"$/g, ''); // حذف گیومه احتمالی
+};
+
 app.all('/', async (req, res) => {
   const method = req.method;
   const params = method === 'GET' ? req.query : req.body;
 
-  const { prompt, seed = 40, model = 'unity', width = 1024, height = 1024, safe = true, enhance = true } = params;
+  const {
+    prompt,
+    seed = 40,
+    model = 'unity',
+    width = 1024,
+    height = 1024,
+    safe = true,
+    enhance = true
+  } = params;
 
   if (!prompt) {
-    return res.status(400).json({ code: 400, owner: 't.me/abj0o', message: 'Prompt is required.' });
+    return res.status(400).json({
+      code: 400,
+      owner: 't.me/abj0o',
+      message: 'Prompt is required.'
+    });
   }
 
+  const userId = generateUserId(); // تولید userId جدید برای هر درخواست
+
   try {
-    const translate = async (text, from = 'fa', to = 'en') => {
-      const data = new URLSearchParams({ sl: from, tl: to, q: text });
-      const headers = {
-        'User-Agent': 'AndroidTranslate/5.3.0.RC02.130475354-53000263 5.1 phone TRANSLATE_OPM5_TEST_1',
-        'Content-Type': 'application/x-www-form-urlencoded',
-      };
-      const response = await axios.post(
-        'https://translate.google.com/translate_a/single?client=at&dt=t&dt=ld&dt=qca&dt=rm&dt=bd&dj=1&hl=es-ES&ie=UTF-8&oe=UTF-8&inputm=2&otf=2&iid=1dd3b944-fa62-4b55-b330-74909a99969e',
-        data.toString(),
-        { headers }
-      );
-      return response.data.sentences[0].trans;
-    };
+    const generatedPrompt = await enhancePrompt(prompt, userId);
+    const query = new URLSearchParams({
+      seed,
+      model,
+      width,
+      height,
+      nologo: true,
+      safe,
+      enhance
+    }).toString();
 
-    const translatedPrompt = await translate(prompt);
-    const query = new URLSearchParams({ seed, model, width, height, nologo: true, safe, enhance }).toString();
-    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(translatedPrompt)}?${query}`;
-
-    const response = await axios.get(url, { responseType: 'arraybuffer' });
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(generatedPrompt)}?${query}`;
+    const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
     const buffer = Buffer.from(response.data);
 
     if (buffer.length < 55) {
-      return res.status(504).json({ code: 504, owner: 't.me/abj0o', prompt: translatedPrompt, settings: params, image: 'Error: No valid image received.' });
+      return res.status(504).json({
+        code: 504,
+        owner: 't.me/abj0o',
+        userId,
+        prompt: generatedPrompt,
+        settings: params,
+        image: 'Error: No valid image received.'
+      });
     }
 
     res.set('Content-Type', 'image/jpeg');
     res.send(buffer);
   } catch (error) {
-    res.status(500).json({ error: error.toString() });
+    res.status(500).json({
+      error: error.toString(),
+      userId
+    });
   }
 });
 
