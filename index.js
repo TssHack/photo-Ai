@@ -34,9 +34,18 @@ const enhancePrompt = async (inputPrompt, userId) => {
 
   const response = await axios.post(url, data, { headers });
 
-  const result = response.data.text || response.data;
-  return result.trim().replace(/^"|"$/g, ''); // حذف گیومه احتمالی
-};
+  let result = response.data;
+
+  if (typeof result === 'object' && result.text) {
+    result = result.text;
+  }
+
+  if (typeof result !== 'string') {
+    throw new Error('Invalid GPT response format: Expected a string.');
+  }
+
+  return result.trim().replace(/^"|"$/g, '');
+  };
 
 app.all('/', async (req, res) => {
   const method = req.method;
